@@ -19,6 +19,7 @@ public class Player : MonoBehaviour {
     private MouseOrbit cameraAngle;
 
     private float routeLength;
+    public float stayTime;
 
     private void OnEnable()
     {
@@ -38,6 +39,7 @@ public class Player : MonoBehaviour {
         cameraAngle = Camera.main.GetComponent<MouseOrbit>();
 
         routeLength = 0;
+        stayTime = 0;
     }
 
     private Vector2 rotate_v2(float alpha, Vector2 p)
@@ -86,9 +88,11 @@ public class Player : MonoBehaviour {
 
     private void Move_Horizontal()
     {
-        Vector3 movement = new Vector3(1f, 0f, 0f) * m_TurnInputvalue * m_Speed * Time.deltaTime + new Vector3(0f, 0f, 1f) * m_MovementInputValue *m_Speed * Time.deltaTime; 
-        m_Rigidbody.MovePosition(m_Rigidbody.position + movement);
-        routeLength += movement.magnitude;
+        Vector3 movement = new Vector3(1f, 0f, 0f) * m_TurnInputvalue * m_Speed + new Vector3(0f, 0f, 1f) * m_MovementInputValue * m_Speed;
+        if (movement.magnitude < 0.01f)
+            stayTime += Time.deltaTime;
+        m_Rigidbody.MovePosition(m_Rigidbody.position + movement * Time.deltaTime);
+        routeLength += movement.magnitude * Time.deltaTime;
     }
 
     private void Turn()

@@ -132,12 +132,18 @@ public class GameManager : MonoBehaviour {
 
     private Information CollectInformation()
     {
+        mazeEngine.finish_maze(playerInstance.GetRouteLength, mazeInstance.GetDurationTime);
+
         Information information = new Information();
         information.userid = userid;
         information.width = mazeInstance.size.x;
         information.height = mazeInstance.size.z;
         information.routeLength = playerInstance.GetRouteLength;
         information.totalTime = mazeInstance.GetDurationTime;
+        information.stayTime = playerInstance.stayTime;
+        information.playerMaxSpeed = playerInstance.m_Speed;
+        information.version = "1.0.0";
+        information.calculatedDifficulty = 0f;
 #if !UNITY_STANDALONE_WIN
         information.platform = "Android";
 #else
@@ -145,8 +151,6 @@ public class GameManager : MonoBehaviour {
 #endif
         information.errorTimes = 0;
         information.userAbility = (float)mazeEngine.user_ability;
-
-        mazeEngine.finish_maze(information.routeLength, information.totalTime);
 
         return information;
     }
@@ -161,6 +165,10 @@ public class GameManager : MonoBehaviour {
         form.AddField("height", newInformation.height);
         form.AddField("routeLength", newInformation.routeLength.ToString());
         form.AddField("totalTime", newInformation.totalTime.ToString());
+        form.AddField("stayTime", newInformation.stayTime.ToString());
+        form.AddField("playerMaxSpeed", newInformation.playerMaxSpeed.ToString());
+        form.AddField("calculatedDifficulty", newInformation.calculatedDifficulty.ToString());
+        form.AddField("version", newInformation.version);
         form.AddField("platform", newInformation.platform);
         form.AddField("errorTimes", newInformation.errorTimes);
         form.AddField("userAbility", newInformation.userAbility.ToString());

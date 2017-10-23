@@ -40,7 +40,7 @@ public class Maze : MonoBehaviour {
 
     private int[,] _graph;
 
-    private float durationTime;
+    private float durationTime = 0f;
 
     private void Awake()
     {
