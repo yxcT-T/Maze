@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+
 public class Base_maze
 {
     public int[,] maze;//迷宫数组 0 通路 1 墙 2 寻找出的路径点 3 起点 4 终点
@@ -32,8 +33,14 @@ public class Base_maze
         //System.Console.Write("Created\n");
         dfs_find_path(startX, startY); //开始寻路
         //System.Console.Write("Route Finded\n");
+        set_or_erase_route(true);  
+    }
+    public void set_or_erase_route(bool set_route = true)  //在地图中显示或擦除道路
+    {
+        int set_type = 2; //默认放置道路
+        if (!set_route) set_type = 0;
         for (int i = 0; i < road_length; i++)
-            maze[pathx[i], pathy[i]] = 2;
+            maze[pathx[i], pathy[i]] = set_type;
     }
     public void dfs_create_maze(int x, int y)
     {
@@ -180,7 +187,11 @@ public class Base_maze
     }
     public double get_total_difficulty() //计算该迷宫总难度分,需要迭代更新根据分支数计算
     {
-        int direction_changes = 0, last_direction, this_direction;
+        int direction_changes = 0, //主通路方向变化的次数
+            branchs_in_main_road = 0,  //主通路上的分支  
+            branchs_in_other_road = 0, //其他地方的岔路
+            last_direction, this_direction;
+        if (maze[2, 1] != 1 && maze[1, 2] != 1) branchs_in_main_road++; //处理起点处的逻辑
         last_direction = 2 * (pathx[1] - pathx[0]) + pathy[1] - pathy[0];
         for (int i = 2; i < road_length; ++i)
         {
@@ -188,12 +199,29 @@ public class Base_maze
             if (this_direction != last_direction)
             {
                 direction_changes++;
-                //需要加入判断分支的逻辑
+                int branch_1_x = pathx[i - 1] + (pathx[i - 1] - pathx[i - 2]);
+                int branch_1_y = pathy[i - 1] + (pathy[i - 1] - pathy[i - 2]);
+                int branch_2_x = pathx[i - 1] - (pathx[i] - pathx[i - 1]);
+                int branch_2_y = pathy[i - 1] - (pathy[i] - pathy[i - 1]);
+                if (maze[branch_1_x, branch_1_y] == 0 || maze[branch_2_x, branch_2_y] == 0) branchs_in_main_road++;
                 last_direction = this_direction;
             }
         }
-        //System.Console.Write("length = {0},dir_change = {1}\n", road_length, direction_changes);
-        calculated_difficulty = System.Math.Log10(road_length) * direction_changes;
+        for (int i=1;i<row_num; i+=2) //计算其他地方的岔路
+            for(int j=1;j<col_num; j+=2)
+            {
+                if(maze[i,j]==0) // 这一格是路
+                {
+                    int count_of_surround = 0;
+                    if (maze[i - 1, j] == 0) count_of_surround++;
+                    if (maze[i, j - 1] == 0) count_of_surround++;
+                    if (maze[i + 1, j] == 0) count_of_surround++;
+                    if (maze[i, j + 1] == 0) count_of_surround++;
+                    if (count_of_surround > 2) branchs_in_other_road++;
+                }
+            }
+       // System.Console.Write("length = {0},dir_change = {1}, branchs = {2}， other_branchs = {3}\n", road_length, direction_changes,branchs_in_main_road,branchs_in_other_road);
+        calculated_difficulty = System.Math.Log10(road_length) * (0.5*direction_changes+1.5*branchs_in_main_road+1.1*branchs_in_other_road);
         return calculated_difficulty;
     }
     public uint hash() //保证迷宫唯一性，采用BKDRHash算法
@@ -206,11 +234,37 @@ public class Base_maze
             }
         return (hash & 0x7FFFFFFFu);
     }
-    public int[] get_hint(int now_X, int now_Y, int hint_length) //获得提示,还没写完
+    public IntVector2[] get_hint(int now_X, int now_Y, int hint_length) //获得提示, 错误的话返回null,不保证返回数组长度一定等于hint_length,有可能会小于
     {
-        int[] hint = new int[hint_length];
+        IntVector2[] hint = new IntVector2[hint_length];
+        if (now_X < 0 || now_Y < 0 || hint_length < 1) return null; //不合法的输入坐标
+        int trans_X = now_X * 2 + 1, trans_Y = now_Y * 2 + 1; //转义后的坐标，之前是单格坐标，现在是双格坐标
+        if (trans_X > row_num || trans_Y > col_num) return null; //坐标越界
+        if (maze[trans_X, trans_Y] == 1) return null; //传入坐标对应位置是墙，无法寻路
+
+        set_or_erase_route(false); //清空现有道路
         road_length = 0; //清空两个路径数组，假如未来仍然需要起点到终点的路径，则进行重构
-        dfs_find_path(now_X, now_Y);
+        has_find_route = false;      
+        dfs_find_path(trans_X, trans_Y);
+        if (!has_find_route) return null; //没找到路
+        
+        int real_hint_length = 0; //真实的提示长度
+        for(int i = 1; i < road_length; ++i)
+        {
+            if (real_hint_length >= hint_length) break;
+            if (pathx[i] %2 ==1 && pathy[i] % 2 == 1)
+            {
+                Console.WriteLine("x{0},y{1}", (pathx[i] - 1) / 2,(pathy[i] - 1) / 2);
+                hint[real_hint_length] = new IntVector2((pathx[i]-1)/2,(pathy[i]-1)/2);
+                real_hint_length++;
+            }
+        }
+        if (real_hint_length == 0) return null; //没找到提示，返回null
+        if (real_hint_length < hint_length) //实际提示长度小于给定长度，截断
+        {
+            IntVector2[] real_hint = new IntVector2[real_hint_length];
+            Array.Copy(hint, real_hint, real_hint_length);
+        }
         return hint;
     }
     public int[,] to_maze_graph()
@@ -239,17 +293,17 @@ public class Base_maze
     /*public static void Main(String[] args)
     {
         System.Console.Write("Start building...\n");
-        Maze engine = new Maze(3,3); //构造长宽为指定值的迷宫
-        for (int i = 0; i < 10; ++i)
+        Base_maze engine = new Base_maze(3,3); //构造长宽为指定值的迷宫
+        for (int i = 25; i < 26; ++i)
         {
-            engine = new Maze(2, 2);
+            engine = new Base_maze(3, 2);
             engine.set_difficulty(i/50.0); //设置难度
             System.Console.WriteLine(i / 50.0);
             engine.create_maze();
             System.Console.WriteLine(engine.get_total_difficulty());
+            engine.get_hint(0,0,5);
             engine.display_in_console();
         }       
-
         Thread.Sleep(100000); //防止关屏
     }*/
 
