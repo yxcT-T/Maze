@@ -15,6 +15,12 @@ public class MouseOrbit : MonoBehaviour
     float ySpeed = 1f;
     float sx, x;
     float sy, y;
+    
+    public float minDistance;
+    public float maxDistance;
+    public float minAngleY;
+    public float maxAngleY;
+
 
     Vector2[] touches_tmp = { Vector2.zero, Vector2.zero, Vector2.zero };
 
@@ -71,8 +77,13 @@ public class MouseOrbit : MonoBehaviour
             {
                 x += Input.GetAxis("Mouse X") * xSpeed * 3;
                 y -= Input.GetAxis("Mouse Y") * ySpeed * 15;
+
                 y = ClampAngle(y);
                 x = ClampAngle(x);
+
+                if (y < minAngleY) y = minAngleY;
+                if (y > maxAngleY) y = maxAngleY;
+
                 transform.rotation = Quaternion.Euler(y, x, 0f);
             }
 
@@ -87,6 +98,9 @@ public class MouseOrbit : MonoBehaviour
             }
 
         }
+
+        if (distance < minDistance) distance = minDistance;
+        if (distance > maxDistance) distance = maxDistance;
         transform.position = target.transform.position - (transform.forward * distance);
     }
 #else
@@ -114,6 +128,10 @@ public class MouseOrbit : MonoBehaviour
             y -= ap_tmp.y * ySpeed;
             y = ClampAngle(y);
             x = ClampAngle(x);
+
+            if (y < minAngleY) y = minAngleY;
+            if (y > maxAngleY) y = maxAngleY;
+
             transform.rotation = Quaternion.Euler(y, x, 0.0f);
         }
 
@@ -134,6 +152,8 @@ public class MouseOrbit : MonoBehaviour
             isMoveTarget = true;
         }
 
+        if (distance < minDistance) distance = minDistance;
+        if (distance > maxDistance) distance = maxDistance;
 		transform.position = target.transform.position - (transform.forward * distance);
 	}
 #endif
