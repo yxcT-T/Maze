@@ -13,7 +13,11 @@ public class Maze_engine
     private const double DIFFICULTY_GROWTH_FACTOR = 1.16; //通关后的难度增长系数，这一超参数可以调节
     private const double DIFFICULTY_REDUCE_FACTOR = 0.75; //失败后的难度降低系数，这一超参数可以调节
     private const double BIGGER_MAP_ADAPTING_FACTOR = 0.8; //更大迷宫的难度适应系数，这一超参数可以调节。
-    private int MAZE_COUNT = 80; //mazes中存储这么多个迷宫数组  这一值可以修改 这一值应当较大，一方面要考虑困难玩家的难度梯度较为平缓，另一方面也需要
+    private const double EACH_ROUND_ADD_FACTOR = 0.7; //每过一关，无论输赢，都增加一点玩家实力，视为玩家实力的自然增长
+    
+    private const int DEFAULT_MAZE_COUNT = 80; //mazes中存储这么多个迷宫数组  这一值可以修改 这一值应当较大，考虑困难玩家的难度梯度较为平缓
+    private const int MIN_MAZE_COUNT = 10; //mazes最少要有这么多个迷宫数组
+    private const double LOWER_BOUND_OF_MAZES = 0.7; //迷宫数组里只存储大于这个值的迷宫，优化存储逻辑
     private int row_num, col_num;
 
 
@@ -24,13 +28,14 @@ public class Maze_engine
         this.user_ability = _user_ability;
         generate_mazes();
     }
-    public double get_calculated_difficulty()
+    public double get_calculated_difficulty() //获得当前迷宫定义难度
     {
         return this_maze.calculated_difficulty;
     }
     public int[,] next_maze() //为用户生成下一关的迷宫，返回mazecell的二维数组
     {
         //是否需要加入新的迷宫增大逻辑？如连续3关后刷新？还是用户特异？
+        user_ability += EACH_ROUND_ADD_FACTOR;
         if (mazes.Last().Key < user_ability) //现有迷宫集难度不足，增大难度
         {
             if (refresh_mazes(true)) //成功刷新迷宫集
@@ -57,7 +62,7 @@ public class Maze_engine
         {
             this_maze = mazes.Last().Value;
         }
-        this_maze.display_in_console(); //调试用，待删除
+        //this_maze.display_in_console(); //调试用，待删除
         return this_maze.to_maze_graph();
     }
     public void finish_maze(double route_length, double total_time) //接口后期会变化，可能会引入其他信息
@@ -70,6 +75,10 @@ public class Maze_engine
         user_ability *= DIFFICULTY_REDUCE_FACTOR; //降低难度
         refresh_mazes(false); //制造小一格的迷宫
     }
+    public IntVector2[] get_hint(int now_X,int now_Y,int hint_length) //获得提示，错误时return null， 不够长时长度可能小于Hint_length
+    {
+        return this_maze.get_hint(now_X,now_Y,hint_length);
+    }
     private bool refresh_mazes(bool bigger_or_smaller)// 刷新迷宫，看是否需要更大或更小，初步计划三次通关同一难度迷宫则变化，放弃一次则变小
     {
         bool has_changed = true;
@@ -77,7 +86,7 @@ public class Maze_engine
         {
             row_num += 2;
             col_num += 2;
-            if (row_num > LIMIT_ROW_NUM && col_num > LIMIT_COL_NUM) has_changed = false;
+            if (row_num >= LIMIT_ROW_NUM && col_num >= LIMIT_COL_NUM) has_changed = false;
             row_num = Math.Min(row_num, LIMIT_ROW_NUM);
             col_num = Math.Min(col_num, LIMIT_COL_NUM);
         }
@@ -93,26 +102,39 @@ public class Maze_engine
         generate_mazes();
         return has_changed; //返回是否成功变更迷宫大小
     }
-    private void generate_mazes()//生成迷宫
+    private void generate_mazes()//生成迷宫数组
     {
         mazes = new SortedDictionary<double, Base_maze>(); //重构迷宫库
-        for (int i = 0; i < MAZE_COUNT; ++i)
+        for (int i = 0; i < DEFAULT_MAZE_COUNT; ++i)
         {
-            Base_maze m = new Base_maze(row_num, col_num);
-            m.set_difficulty((double)i / MAZE_COUNT);
-            m.create_maze();
-            try
+            create_one_maze((double)i);
+        }
+        if (mazes.Count() < MIN_MAZE_COUNT) //迷宫数量不足
+        {
+            for(int i = 0; i < DEFAULT_MAZE_COUNT; ++i)
             {
-                mazes.Add(m.get_total_difficulty(), m);
+                create_one_maze(1.0); //最难迷宫 多生成几个
             }
-            catch (ArgumentException)
-            {
-                //难度重复，假装无事发生过
-            }
-
+        }
+        Console.WriteLine("now mazes len{0}", mazes.Count());
+    }
+    private void create_one_maze(double difficulty) //生成单个迷宫
+    {
+        Base_maze m = new Base_maze(row_num, col_num);
+        m.set_difficulty(difficulty / DEFAULT_MAZE_COUNT);
+        m.create_maze();
+        try
+        {
+            double calculated_difficulty = m.get_total_difficulty();
+            if (calculated_difficulty < user_ability * LOWER_BOUND_OF_MAZES) return;
+            mazes.Add(m.get_total_difficulty(), m);
+        }
+        catch (ArgumentException)
+        {
+            //难度重复，假装无事发生过
         }
     }
-    /*public static void Main(String[] args)
+    public static void Main(String[] args)
     {
         Maze_engine mengine = new Maze_engine(10);
         for (int i = 0; i < 50; ++i)
@@ -125,6 +147,6 @@ public class Maze_engine
             Thread.Sleep(100);
         }
         Thread.Sleep(2000000);
-    }*/
+    }
 
 }
