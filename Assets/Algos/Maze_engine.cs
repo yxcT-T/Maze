@@ -24,6 +24,10 @@ public class Maze_engine
         this.user_ability = _user_ability;
         generate_mazes();
     }
+    public double get_calculated_difficulty()
+    {
+        return this_maze.calculated_difficulty;
+    }
     public int[,] next_maze() //为用户生成下一关的迷宫，返回mazecell的二维数组
     {
         //是否需要加入新的迷宫增大逻辑？如连续3关后刷新？还是用户特异？
